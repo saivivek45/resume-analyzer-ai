@@ -1,11 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel,EmailStr
 from uuid import UUID
 import datetime
 
 
 class User(BaseModel):
     id: UUID
-    email: str
+    email: EmailStr
     hashed_password:str
     full_name:str
     is_active:bool

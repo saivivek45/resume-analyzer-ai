@@ -7,6 +7,9 @@ from app.database.base import Base
 from app.models.user import User
 from app.models.resume import Resume
 from app.models.resume_analytics import ResumeAnalysis
+
+
+from app.routers.auth import router as auth_router
 # Create all tables
 Base.metadata.create_all(bind=engine)
 
@@ -31,6 +34,8 @@ def get_db():
         db.close()
 
 
+app.include_router(auth_router)
+
 @app.get("/")
 def welcome():
-    return {"message": "Welcome to CareerPilot AI"}
+    return {"message": "Welcome"}

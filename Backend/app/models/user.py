@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
 import uuid
+
 from app.database.base import Base
 
 
@@ -14,15 +15,37 @@ class User(Base):
         default=uuid.uuid4
     )
 
-    email = Column(String(255), unique=True, index=True, nullable=False)
+    email = Column(
+        String(255),
+        unique=True,
+        index=True,
+        nullable=False
+    )
 
-    hashed_password = Column(String, nullable=False)
+    hashed_password = Column(
+        String,
+        nullable=True
+    )
 
-    full_name = Column(String(255), nullable=False)
+    auth_provider = Column(
+        String(50),
+        default="local"
+    )
 
-    is_active = Column(Boolean, default=True)
+    full_name = Column(
+        String(255),
+        nullable=False
+    )
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    is_active = Column(
+        Boolean,
+        default=True
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
 
     updated_at = Column(
         DateTime,
