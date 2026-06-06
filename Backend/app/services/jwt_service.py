@@ -1,43 +1,31 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from jose import JWTError, jwt
 
-SECRET_KEY = "your-super-secret-key"
+from app.config import settings
+
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_DAYS = 7
 
 
-def create_access_token(data: dict):
+def create_access_token(data: dict[str, Any]) -> str:
     to_encode = data.copy()
-
-    expire = datetime.utcnow() + timedelta(
-        days=ACCESS_TOKEN_EXPIRE_DAYS
-    )
-
+    now = datetime.now(timezone.utc)
     to_encode.update(
         {
-            "exp": expire
+            "iat": now,
+            "exp": now + timedelta(days=settings.jwt_expire_days),
         }
     )
-
-    encoded_jwt = jwt.encode(
-        to_encode,
-        SECRET_KEY,
-        algorithm=ALGORITHM
-    )
-
-    return encoded_jwt
+    return jwt.encode(to_encode, settings.secret_key, algorithm=ALGORITHM)
 
 
-def verify_token(token: str):
+def verify_token(token: str) -> dict[str, Any] | None:
     try:
-        payload = jwt.decode(
+        return jwt.decode(
             token,
-            SECRET_KEY,
+            settings.secret_key,
             algorithms=[ALGORITHM]
         )
-
-        return payload
-
     except JWTError:
         return None

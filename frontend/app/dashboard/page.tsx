@@ -1,43 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { AuthLoading } from "@/components/auth-loading";
+import { useAuth } from "@/components/auth-provider";
 import { Brand } from "@/components/brand";
-import { getUserEmail, isAuthenticated, removeToken } from "@/src/lib/auth";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const { user, isLoading, logout } = useAuth();
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      if (!isAuthenticated()) {
-        router.replace("/login");
-        return;
-      }
+    if (!isLoading && !user) {
+      router.replace("/login");
+    }
+  }, [isLoading, router, user]);
 
-      setEmail(getUserEmail() ?? "CareerPilot user");
-      setIsCheckingAuth(false);
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [router]);
-
-  function handleLogout(): void {
-    removeToken();
+  async function handleLogout(): Promise<void> {
+    await logout();
     router.replace("/login");
   }
 
-  if (isCheckingAuth) {
-    return (
-      <main className="grid min-h-screen place-items-center">
-        <div className="flex items-center gap-3 text-sm text-slate-400">
-          <span className="h-5 w-5 animate-spin rounded-full border-2 border-cyan-400/20 border-t-cyan-300" />
-          Securing your workspace...
-        </div>
-      </main>
-    );
+  if (isLoading || !user) {
+    return <AuthLoading />;
   }
 
   const analysisRows = ["Overall resume score", "ATS compatibility", "Content impact"];
@@ -47,21 +32,21 @@ export default function DashboardPage() {
       <header className="border-b border-white/[0.07] bg-slate-950/40">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
           <Brand />
-          <button className="button-secondary" onClick={handleLogout} type="button">Log out</button>
+          <button className="button-secondary" onClick={() => void handleLogout()} type="button">Log out</button>
         </div>
       </header>
       <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 lg:px-12 lg:py-14">
         <div className="flex flex-col justify-between gap-5 border-b border-white/[0.07] pb-8 sm:flex-row sm:items-end">
           <div>
-            <p className="text-sm font-medium text-cyan-300">{email}</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Welcome to your career workspace</h1>
+            <p className="text-sm font-medium text-cyan-300">{user.email}</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Welcome, {user.full_name}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">Upload a resume to uncover its strengths, find opportunities, and get focused recommendations for your next application.</p>
           </div>
           <span className="w-fit rounded-full border border-emerald-400/20 bg-emerald-400/[0.07] px-3 py-1.5 text-xs font-medium text-emerald-300">Account active</span>
         </div>
         <section className="mt-8 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
           <article className="glass-card flex min-h-80 flex-col items-center justify-center p-7 text-center">
-            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.07] text-2xl text-cyan-300">↑</div>
+            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.07] text-2xl text-cyan-300">+</div>
             <h2 className="mt-5 text-xl font-semibold text-white">Upload your resume</h2>
             <p className="mt-2 max-w-sm text-sm leading-6 text-slate-400">Add a PDF or DOCX file to begin your personalized resume analysis.</p>
             <button className="button-primary button-large mt-6" disabled type="button">Upload coming soon</button>

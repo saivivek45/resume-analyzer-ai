@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -9,8 +9,11 @@ import { AuthShell } from "@/components/auth-shell";
 import { FormField } from "@/components/form-field";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { StatusMessage } from "@/components/status-message";
+import { GoogleLoginButton } from "@/components/google-login-button";
+import { AuthLoading } from "@/components/auth-loading";
+import { useAuth } from "@/components/auth-provider";
 import api, { getApiErrorMessage } from "@/src/lib/api";
-import { setToken, setUserEmail } from "@/src/lib/auth";
+import type { AuthResponse } from "@/src/lib/auth";
 
 const loginSchema = z.object({
   email: z.email("Enter a valid email address"),
@@ -19,13 +22,9 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>;
 
-interface LoginResponse {
-  access_token: string;
-  token_type: string;
-}
-
 export default function LoginPage() {
   const router = useRouter();
+  const { user, isLoading, setAuthenticatedUser } = useAuth();
   const [apiError, setApiError] = useState("");
   const {
     register,
@@ -36,16 +35,25 @@ export default function LoginPage() {
     defaultValues: { email: "", password: "" },
   });
 
+  useEffect(() => {
+    if (!isLoading && user) {
+      router.replace("/dashboard");
+    }
+  }, [isLoading, router, user]);
+
   async function onSubmit(values: LoginValues): Promise<void> {
     setApiError("");
     try {
-      const { data } = await api.post<LoginResponse>("/auth/login", values);
-      setToken(data.access_token);
-      setUserEmail(values.email);
+      const { data } = await api.post<AuthResponse>("/auth/login", values);
+      setAuthenticatedUser(data.user);
       router.replace("/dashboard");
     } catch (error: unknown) {
       setApiError(getApiErrorMessage(error, "Login failed. Please try again."));
     }
+  }
+
+  if (isLoading || user) {
+    return <AuthLoading />;
   }
 
   return (
@@ -65,6 +73,12 @@ export default function LoginPage() {
           {isSubmitting ? "Signing in..." : "Sign in"}
         </button>
       </form>
+      <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-widest text-slate-600">
+        <span className="h-px flex-1 bg-white/10" />
+        or
+        <span className="h-px flex-1 bg-white/10" />
+      </div>
+      <GoogleLoginButton onError={setApiError} />
     </AuthShell>
   );
 }
