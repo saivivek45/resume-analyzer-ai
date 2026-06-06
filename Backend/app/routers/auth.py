@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.schemas.auth import (
     SignupRequest,
-    LoginRequest,
-    TokenResponse
+    LoginRequest
 )
 
 from app.services.auth_service import (
@@ -13,10 +13,12 @@ from app.services.auth_service import (
     verify_password
 )
 
-from app.services.jwt_service import create_access_token,verify_token
+from app.services.jwt_service import (
+    create_access_token,
+    verify_token
+)
 
 from app.database.db import SessionLocal
-from fastapi.security import OAuth2PasswordBearer
 
 
 def get_db():
@@ -33,10 +35,6 @@ router = APIRouter(
 )
 
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/auth/login"
-)
-
 @router.post("/signup", status_code=201)
 def signup(
     user: SignupRequest,
@@ -52,7 +50,9 @@ def signup(
             detail="User already exists"
         )
 
-    hashed_password = hash_password(user.password)
+    hashed_password = hash_password(
+        user.password
+    )
 
     new_user = User(
         email=user.email,
@@ -70,10 +70,7 @@ def signup(
     }
 
 
-@router.post(
-    "/login",
-    response_model=TokenResponse
-)
+@router.post("/login")
 def login(
     user: LoginRequest,
     db: Session = Depends(get_db)
@@ -104,16 +101,55 @@ def login(
         }
     )
 
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
+    response = JSONResponse(
+        content={
+            "message": "Login successful"
+        }
+    )
+
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,     # change to True in production
+        samesite="lax",
+        max_age=60 * 60 * 24 * 7
+    )
+
+    return response
+
+
+@router.post("/logout")
+def logout():
+
+    response = JSONResponse(
+        content={
+            "message": "Logged out"
+        }
+    )
+
+    response.delete_cookie(
+        key="access_token"
+    )
+
+    return response
+
 
 @router.get("/me")
 def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    request: Request,
     db: Session = Depends(get_db)
 ):
+    token = request.cookies.get(
+        "access_token"
+    )
+
+    if not token:
+        raise HTTPException(
+            status_code=401,
+            detail="Not authenticated"
+        )
+
     payload = verify_token(token)
 
     if not payload:
@@ -139,6 +175,7 @@ def get_current_user(
         "email": user.email,
         "full_name": user.full_name
     }
+
 
 @router.get("/test-token")
 def test_token(token: str):
