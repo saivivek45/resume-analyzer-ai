@@ -1,0 +1,170 @@
+@import "tailwindcss";
+
+:root {
+  --background: #050914;
+  --foreground: #f8fafc;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+}
+
+button,
+a,
+input {
+  transition-duration: 180ms;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hero-glow {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 75% 20%, rgba(34, 211, 238, 0.12), transparent 30%),
+    radial-gradient(circle at 15% 35%, rgba(59, 130, 246, 0.12), transparent 28%),
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: auto, auto, 72px 72px, 72px 72px;
+  mask-image: linear-gradient(to bottom, black 0%, transparent 80%);
+  pointer-events: none;
+}
+
+.gradient-text {
+  background: linear-gradient(120deg, #67e8f9, #60a5fa 75%);
+  background-clip: text;
+  color: transparent;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  border: 1px solid rgba(103, 232, 249, 0.16);
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.06);
+  padding: 0.55rem 0.8rem;
+  color: #a5f3fc;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.button-primary,
+.button-secondary,
+.button-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border-radius: 0.75rem;
+  padding: 0.65rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.button-primary {
+  border: 1px solid #22d3ee;
+  background: #22d3ee;
+  color: #06202a;
+  box-shadow: 0 10px 35px rgba(34, 211, 238, 0.14);
+}
+
+.button-primary:hover {
+  border-color: #67e8f9;
+  background: #67e8f9;
+  transform: translateY(-1px);
+}
+
+.button-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  transform: none;
+}
+
+.button-secondary {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
+}
+
+.button-secondary:hover,
+.button-ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+.button-ghost {
+  color: #cbd5e1;
+}
+
+.button-large {
+  min-height: 3.25rem;
+  padding-inline: 1.4rem;
+}
+
+.glass-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.75rem;
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.88), rgba(8, 15, 30, 0.74));
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(20px);
+}
+
+.score-ring {
+  display: grid;
+  width: 4.5rem;
+  height: 4.5rem;
+  place-items: center;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, #0a1020 58%, transparent 60%),
+    conic-gradient(#22d3ee 92%, rgba(255, 255, 255, 0.08) 0);
+  color: white;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.feature-card {
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 1.5rem;
+}
+
+.form-input {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 0.75rem;
+  outline: none;
+  background: rgba(15, 23, 42, 0.65);
+  padding: 0.8rem 0.9rem;
+  color: white;
+  font-size: 0.9rem;
+}
+
+.form-input::placeholder {
+  color: #64748b;
+}
+
+.form-input:focus {
+  border-color: rgba(34, 211, 238, 0.7);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.08);
+}
