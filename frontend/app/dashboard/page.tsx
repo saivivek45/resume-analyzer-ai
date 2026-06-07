@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AuthLoading } from "@/components/auth-loading";
 import { useAuth } from "@/components/auth-provider";
 import { Brand } from "@/components/brand";
-
+import { User } from "lucide-react";
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
@@ -32,7 +32,23 @@ export default function DashboardPage() {
       <header className="border-b border-white/[0.07] bg-slate-950/40">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
           <Brand />
-          <button className="button-secondary" onClick={() => void handleLogout()} type="button">Log out</button>
+
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.push("/profile")}
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-400/5 text-cyan-300 transition-all duration-300 hover:scale-105 hover:border-cyan-400/40 hover:bg-cyan-400/10"
+            >
+              <User size={20} />
+            </button>
+
+            <button
+              className="button-secondary"
+              onClick={() => void handleLogout()}
+              type="button"
+            >
+              Log out
+            </button>
+          </div>
         </div>
       </header>
       <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 lg:px-12 lg:py-14">
