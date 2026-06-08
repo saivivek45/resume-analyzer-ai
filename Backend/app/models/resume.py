@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, DateTime,ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
 import uuid
-
+from pydantic import BaseModel, Field
 from app.database.base import Base
 
 
@@ -41,3 +41,9 @@ class Resume(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow
     )
+
+class ResumeTextPayload(BaseModel):
+    text: str = Field(..., min_length=1)
+    file_name: str | None = None
+    user_email: str | None = None
+

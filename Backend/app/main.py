@@ -12,6 +12,7 @@ from app.models.resume_analytics import ResumeAnalysis
 
 
 from app.routers.auth import router as auth_router
+from app.routers.resume import router as resume_router
 # Create all tables
 Base.metadata.create_all(bind=engine)
 
@@ -27,6 +28,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(resume_router)
 
 @app.get("/")
 def welcome():

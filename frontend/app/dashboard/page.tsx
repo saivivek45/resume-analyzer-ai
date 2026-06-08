@@ -1,14 +1,33 @@
 "use client";
-
-import { useEffect } from "react";
+import { ChangeEvent, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthLoading } from "@/components/auth-loading";
 import { useAuth } from "@/components/auth-provider";
 import { Brand } from "@/components/brand";
-import { User } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileText, Upload, User, X } from "lucide-react";
+import api, { getApiErrorMessage } from "@/src/lib/api";
+
+interface UploadResponse {
+  text?: string;
+}
+
+interface StoreResponse {
+  file_path?: string;
+  detail?: string;
+  message?: string;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
+  const fileInputId = useId();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [resumeText, setResumeText] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [uploadSuccess, setUploadSuccess] = useState("");
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -19,6 +38,103 @@ export default function DashboardPage() {
   async function handleLogout(): Promise<void> {
     await logout();
     router.replace("/login");
+  }
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>): void {
+    const file = event.target.files?.[0] ?? null;
+
+    setUploadError("");
+    setUploadSuccess("");
+    setResumeText("");
+
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
+    if (!isPdf) {
+      setSelectedFile(null);
+      setUploadError("Please choose a PDF resume file.");
+      event.target.value = "";
+      return;
+    }
+
+    setSelectedFile(file);
+  }
+
+  function clearSelectedFile(): void {
+    setSelectedFile(null);
+    setResumeText("");
+    setUploadError("");
+    setUploadSuccess("");
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleUpload(): Promise<void> {
+    if (!selectedFile) {
+      setUploadError("Choose a PDF resume before uploading.");
+      return;
+    }
+
+    if (!user) {
+      setUploadError("Please log in again before uploading.");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError("");
+    setUploadSuccess("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      const response = await api.post<UploadResponse>("/resume/upload", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      const extractedText = response.data.text?.trim() ?? "";
+
+      if (!extractedText) {
+        setUploadError("The upload worked, but no readable text was found in this PDF.");
+        setResumeText("");
+        return;
+      }
+
+      setResumeText(extractedText);
+
+      const storeResponse = await fetch("/api/resume/store", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: extractedText,
+          fileName: selectedFile.name,
+          userEmail: user.email,
+        }),
+      });
+
+      const storeData = (await storeResponse.json()) as StoreResponse;
+
+      if (!storeResponse.ok) {
+        setUploadError(storeData.detail ?? "Resume text was extracted, but storing it failed.");
+        return;
+      }
+
+      setUploadSuccess("Resume uploaded, extracted, and stored.");
+    } catch (error) {
+      setUploadError(getApiErrorMessage(error, "Upload failed. Please try another PDF."));
+    } finally {
+      setIsUploading(false);
+    }
   }
 
   if (isLoading || !user) {
@@ -62,11 +178,71 @@ export default function DashboardPage() {
         </div>
         <section className="mt-8 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
           <article className="glass-card flex min-h-80 flex-col items-center justify-center p-7 text-center">
-            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.07] text-2xl text-cyan-300">+</div>
+            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.07] text-cyan-300">
+              <Upload size={24} />
+            </div>
             <h2 className="mt-5 text-xl font-semibold text-white">Upload your resume</h2>
-            <p className="mt-2 max-w-sm text-sm leading-6 text-slate-400">Add a PDF or DOCX file to begin your personalized resume analysis.</p>
-            <button className="button-primary button-large mt-6" disabled type="button">Upload coming soon</button>
-            <p className="mt-3 text-xs text-slate-600">PDF or DOCX, up to 10 MB</p>
+            <p className="mt-2 max-w-sm text-sm leading-6 text-slate-400">Add a PDF file to begin your personalized resume analysis.</p>
+            <input
+              id={fileInputId}
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              className="sr-only"
+              onChange={handleFileChange}
+            />
+            <label
+              htmlFor={fileInputId}
+              className="mt-6 flex w-full max-w-sm cursor-pointer flex-col items-center rounded-2xl border border-dashed border-cyan-300/25 bg-cyan-300/[0.04] px-5 py-6 text-sm text-slate-300 hover:border-cyan-300/45 hover:bg-cyan-300/[0.07]"
+            >
+              <FileText className="mb-3 text-cyan-300" size={28} />
+              <span className="font-semibold text-white">
+                {selectedFile ? "Change selected PDF" : "Choose a PDF file"}
+              </span>
+              <span className="mt-1 text-xs text-slate-500">PDF resumes are supported right now.</span>
+            </label>
+
+            {selectedFile && (
+              <div className="mt-4 flex w-full max-w-sm items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.035] px-4 py-3 text-left">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-white">{selectedFile.name}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+                <button
+                  aria-label="Remove selected file"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-400 hover:text-white"
+                  onClick={clearSelectedFile}
+                  type="button"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+
+            {uploadError && (
+              <p className="mt-4 flex max-w-sm items-start gap-2 text-left text-sm leading-6 text-rose-300">
+                <AlertCircle className="mt-0.5 shrink-0" size={16} />
+                <span>{uploadError}</span>
+              </p>
+            )}
+
+            {uploadSuccess && (
+              <p className="mt-4 flex max-w-sm items-start gap-2 text-left text-sm leading-6 text-emerald-300">
+                <CheckCircle2 className="mt-0.5 shrink-0" size={16} />
+                <span>{uploadSuccess}</span>
+              </p>
+            )}
+
+            <button
+              className="button-primary button-large mt-5"
+              disabled={!selectedFile || isUploading}
+              onClick={() => void handleUpload()}
+              type="button"
+            >
+              {isUploading ? "Uploading..." : "Upload Resume"}
+            </button>
           </article>
           <article className="glass-card min-h-80 p-7">
             <div className="flex items-center justify-between">
@@ -74,7 +250,9 @@ export default function DashboardPage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Latest report</p>
                 <h2 className="mt-2 text-xl font-semibold text-white">Resume analysis</h2>
               </div>
-              <span className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-slate-500">Waiting</span>
+              <span className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-slate-500">
+                {resumeText ? "Ready" : "Waiting"}
+              </span>
             </div>
             <div className="mt-8 space-y-4">
               {analysisRows.map((label) => (
@@ -84,9 +262,24 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-            <p className="mt-6 text-sm leading-6 text-slate-500">Your insights and recommendations will appear here after your first resume upload.</p>
+            <p className="mt-6 text-sm leading-6 text-slate-500">
+              {resumeText
+                ? "Your resume text was extracted successfully. Analysis scoring can be added on top of this upload flow."
+                : "Your insights and recommendations will appear here after your first resume upload."}
+            </p>
           </article>
         </section>
+        {resumeText && (
+          <section className="mt-8">
+            <article className="glass-card p-7">
+              <h2 className="text-xl font-semibold text-white">Extracted Resume Text</h2>
+
+              <pre className="mt-4 max-h-[32rem] overflow-auto whitespace-pre-wrap rounded-2xl border border-white/[0.07] bg-slate-950/45 p-4 text-left text-sm leading-6 text-slate-300">
+                {resumeText}
+              </pre>
+            </article>
+          </section>
+        )}
       </div>
     </main>
   );
