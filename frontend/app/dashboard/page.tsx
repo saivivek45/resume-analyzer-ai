@@ -4,17 +4,24 @@ import { useRouter } from "next/navigation";
 import { AuthLoading } from "@/components/auth-loading";
 import { useAuth } from "@/components/auth-provider";
 import { Brand } from "@/components/brand";
-import { AlertCircle, CheckCircle2, FileText, Upload, User, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileSearch, FileText, Upload, User, X } from "lucide-react";
 import api, { getApiErrorMessage } from "@/src/lib/api";
 
 interface UploadResponse {
   text?: string;
 }
 
-interface StoreResponse {
-  file_path?: string;
-  detail?: string;
-  message?: string;
+interface AnalysisResponse {
+  overall_score: number;
+  ats_score: number;
+  content_score: number;
+  detected_skills: string[];
+  missing_skills: string[];
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
+  file_name?: string;
+  user_email?: string;
 }
 
 export default function DashboardPage() {
@@ -26,6 +33,9 @@ export default function DashboardPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [resumeText, setResumeText] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
+  const [analysisError, setAnalysisError] = useState("");
   const [uploadError, setUploadError] = useState("");
   const [uploadSuccess, setUploadSuccess] = useState("");
 
@@ -46,6 +56,8 @@ export default function DashboardPage() {
     setUploadError("");
     setUploadSuccess("");
     setResumeText("");
+    setAnalysis(null);
+    setAnalysisError("");
 
     if (!file) {
       setSelectedFile(null);
@@ -67,6 +79,8 @@ export default function DashboardPage() {
   function clearSelectedFile(): void {
     setSelectedFile(null);
     setResumeText("");
+    setAnalysis(null);
+    setAnalysisError("");
     setUploadError("");
     setUploadSuccess("");
 
@@ -110,26 +124,7 @@ export default function DashboardPage() {
 
       setResumeText(extractedText);
 
-      const storeResponse = await fetch("/api/resume/store", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          text: extractedText,
-          fileName: selectedFile.name,
-          userEmail: user.email,
-        }),
-      });
-
-      const storeData = (await storeResponse.json()) as StoreResponse;
-
-      if (!storeResponse.ok) {
-        setUploadError(storeData.detail ?? "Resume text was extracted, but storing it failed.");
-        return;
-      }
-
-      setUploadSuccess("Resume uploaded, extracted, and stored.");
+      setUploadSuccess("Resume uploaded and extracted.");
     } catch (error) {
       setUploadError(getApiErrorMessage(error, "Upload failed. Please try another PDF."));
     } finally {
@@ -137,11 +132,46 @@ export default function DashboardPage() {
     }
   }
 
+
+  async function handleAnalyzeResume(): Promise<void> {
+    if (!resumeText) {
+      setAnalysisError("Upload a resume before running analysis.");
+      return;
+    }
+
+    if (!user) {
+      setAnalysisError("Please log in again before analyzing.");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAnalysisError("");
+
+    try {
+      const response = await api.post<AnalysisResponse>("/resume/analyze", {
+        text: resumeText,
+        file_name: selectedFile?.name,
+        user_email: user.email,
+      });
+
+      setAnalysis(response.data);
+    } catch (error) {
+      setAnalysisError(getApiErrorMessage(error, "Analysis failed. Please try again."));
+    } finally {
+      setIsAnalyzing(false);
+    }
+
+  }
+
   if (isLoading || !user) {
     return <AuthLoading />;
   }
 
-  const analysisRows = ["Overall resume score", "ATS compatibility", "Content impact"];
+  const analysisRows = [
+    { label: "Overall resume score", value: analysis?.overall_score },
+    { label: "ATS compatibility", value: analysis?.ats_score },
+    { label: "Content impact", value: analysis?.content_score },
+  ];
 
   return (
     <main className="min-h-screen">
@@ -243,6 +273,18 @@ export default function DashboardPage() {
             >
               {isUploading ? "Uploading..." : "Upload Resume"}
             </button>
+
+            {resumeText && (
+              <button
+                className="button-secondary button-large mt-3"
+                disabled={isAnalyzing}
+                onClick={() => void handleAnalyzeResume()}
+                type="button"
+              >
+                <FileSearch size={18} />
+                {isAnalyzing ? "Analyzing..." : "Analyze Resume"}
+              </button>
+            )}
           </article>
           <article className="glass-card min-h-80 p-7">
             <div className="flex items-center justify-between">
@@ -251,22 +293,70 @@ export default function DashboardPage() {
                 <h2 className="mt-2 text-xl font-semibold text-white">Resume analysis</h2>
               </div>
               <span className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-slate-500">
-                {resumeText ? "Ready" : "Waiting"}
+                {analysis ? "Analyzed" : resumeText ? "Ready" : "Waiting"}
               </span>
             </div>
             <div className="mt-8 space-y-4">
-              {analysisRows.map((label) => (
-                <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.025] px-4 py-4" key={label}>
-                  <span className="text-sm text-slate-400">{label}</span>
-                  <span className="h-2 w-20 rounded-full bg-white/[0.06]" />
+              {analysisRows.map((row) => (
+                <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.025] px-4 py-4" key={row.label}>
+                  <span className="text-sm text-slate-400">{row.label}</span>
+                  {typeof row.value === "number" ? (
+                    <span className="text-sm font-semibold text-cyan-200">{row.value}/100</span>
+                  ) : (
+                    <span className="h-2 w-20 rounded-full bg-white/[0.06]" />
+                  )}
                 </div>
               ))}
             </div>
+            {analysisError && (
+              <p className="mt-5 flex items-start gap-2 text-sm leading-6 text-rose-300">
+                <AlertCircle className="mt-0.5 shrink-0" size={16} />
+                <span>{analysisError}</span>
+              </p>
+            )}
             <p className="mt-6 text-sm leading-6 text-slate-500">
-              {resumeText
-                ? "Your resume text was extracted successfully. Analysis scoring can be added on top of this upload flow."
+              {analysis
+                ? "Analysis complete. Review the recommendations below and refine your resume for the role you want."
+                : resumeText
+                  ? "Your resume text was extracted successfully. Run analysis to generate scores and recommendations."
                 : "Your insights and recommendations will appear here after your first resume upload."}
             </p>
+            {analysis && (
+              <div className="mt-6 space-y-5">
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Detected skills</h3>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {analysis.detected_skills.length ? (
+                      analysis.detected_skills.map((skill) => (
+                        <span className="rounded-full border border-cyan-300/20 bg-cyan-300/[0.07] px-3 py-1 text-xs text-cyan-200" key={skill}>
+                          {skill}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-sm text-slate-500">No searchable skills detected yet.</span>
+                    )}
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">Strengths</h3>
+                    <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-400">
+                      {analysis.strengths.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">Improve next</h3>
+                    <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-400">
+                      {analysis.recommendations.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
           </article>
         </section>
         {resumeText && (
