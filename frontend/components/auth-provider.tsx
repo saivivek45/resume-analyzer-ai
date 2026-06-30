@@ -38,7 +38,11 @@ function AuthStateProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void refreshUser();
+    const timeoutId = window.setTimeout(() => {
+      void refreshUser();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [refreshUser]);
 
   const logout = useCallback(async () => {

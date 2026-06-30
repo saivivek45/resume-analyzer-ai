@@ -1,376 +1,159 @@
 "use client";
-import { ChangeEvent, useEffect, useId, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { AuthLoading } from "@/components/auth-loading";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { ArrowRight, ClipboardCheck, FileSearch, History, Mic, Upload } from "lucide-react";
+import { AnalysisReport } from "@/components/dashboard/analysis-report";
+import { useResumeUpload } from "@/components/dashboard/resume-upload-context";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { FileUpload } from "@/components/ui/file-upload";
+import { PageHeader } from "@/components/ui/page-header";
+import { ScoreCard } from "@/components/ui/score-card";
 import { useAuth } from "@/components/auth-provider";
-import { Brand } from "@/components/brand";
-import { AlertCircle, CheckCircle2, FileSearch, FileText, Upload, User, X } from "lucide-react";
-import api, { getApiErrorMessage } from "@/src/lib/api";
-
-interface UploadResponse {
-  text?: string;
-}
-
-interface AnalysisResponse {
-  overall_score: number;
-  ats_score: number;
-  content_score: number;
-  detected_skills: string[];
-  missing_skills: string[];
-  strengths: string[];
-  weaknesses: string[];
-  recommendations: string[];
-  file_name?: string;
-  user_email?: string;
-}
+import { getLatestAnalysis, getResumeHistory } from "@/src/lib/resume";
+import type { AnalysisResponse, ResumeHistoryItem } from "@/src/lib/resume";
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const { user, isLoading, logout } = useAuth();
-  const fileInputId = useId();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [resumeText, setResumeText] = useState("");
-  const [isUploading, setIsUploading] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
-  const [analysisError, setAnalysisError] = useState("");
-  const [uploadError, setUploadError] = useState("");
-  const [uploadSuccess, setUploadSuccess] = useState("");
+  const { user } = useAuth();
+  const upload = useResumeUpload();
+  const [latest, setLatest] = useState<AnalysisResponse | null>(null);
+  const [history, setHistory] = useState<ResumeHistoryItem[]>([]);
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.replace("/login");
-    }
-  }, [isLoading, router, user]);
+    const timeoutId = window.setTimeout(() => {
+      setLatest(getLatestAnalysis());
+      setHistory(getResumeHistory());
+    }, 0);
 
-  async function handleLogout(): Promise<void> {
-    await logout();
-    router.replace("/login");
-  }
+    return () => window.clearTimeout(timeoutId);
+  }, [upload.analysis]);
 
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>): void {
-    const file = event.target.files?.[0] ?? null;
-
-    setUploadError("");
-    setUploadSuccess("");
-    setResumeText("");
-    setAnalysis(null);
-    setAnalysisError("");
-
-    if (!file) {
-      setSelectedFile(null);
-      return;
-    }
-
-    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-
-    if (!isPdf) {
-      setSelectedFile(null);
-      setUploadError("Please choose a PDF resume file.");
-      event.target.value = "";
-      return;
-    }
-
-    setSelectedFile(file);
-  }
-
-  function clearSelectedFile(): void {
-    setSelectedFile(null);
-    setResumeText("");
-    setAnalysis(null);
-    setAnalysisError("");
-    setUploadError("");
-    setUploadSuccess("");
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  }
-
-  async function handleUpload(): Promise<void> {
-    if (!selectedFile) {
-      setUploadError("Choose a PDF resume before uploading.");
-      return;
-    }
-
-    if (!user) {
-      setUploadError("Please log in again before uploading.");
-      return;
-    }
-
-    setIsUploading(true);
-    setUploadError("");
-    setUploadSuccess("");
-
-    try {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-
-      const response = await api.post<UploadResponse>("/resume/upload", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      const extractedText = response.data.text?.trim() ?? "";
-
-      if (!extractedText) {
-        setUploadError("The upload worked, but no readable text was found in this PDF.");
-        setResumeText("");
-        return;
-      }
-
-      setResumeText(extractedText);
-
-      setUploadSuccess("Resume uploaded and extracted.");
-    } catch (error) {
-      setUploadError(getApiErrorMessage(error, "Upload failed. Please try another PDF."));
-    } finally {
-      setIsUploading(false);
-    }
-  }
-
-
-  async function handleAnalyzeResume(): Promise<void> {
-    if (!resumeText) {
-      setAnalysisError("Upload a resume before running analysis.");
-      return;
-    }
-
-    if (!user) {
-      setAnalysisError("Please log in again before analyzing.");
-      return;
-    }
-
-    setIsAnalyzing(true);
-    setAnalysisError("");
-
-    try {
-      const response = await api.post<AnalysisResponse>("/resume/analyze", {
-        text: resumeText,
-        file_name: selectedFile?.name,
-        user_email: user.email,
-      });
-
-      setAnalysis(response.data);
-    } catch (error) {
-      setAnalysisError(getApiErrorMessage(error, "Analysis failed. Please try again."));
-    } finally {
-      setIsAnalyzing(false);
-    }
-
-  }
-
-  if (isLoading || !user) {
-    return <AuthLoading />;
-  }
-
-  const analysisRows = [
-    { label: "Overall resume score", value: analysis?.overall_score },
-    { label: "ATS compatibility", value: analysis?.ats_score },
-    { label: "Content impact", value: analysis?.content_score },
-  ];
+  const activeAnalysis = upload.analysis ?? latest;
+  const displayName = user?.full_name ?? "there";
+  const email = user?.email ?? "CareerPilot AI";
 
   return (
-    <main className="min-h-screen">
-      <header className="border-b border-white/[0.07] bg-slate-950/40">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
-          <Brand />
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow={email}
+        title={`Welcome, ${displayName}`}
+        description="Upload a resume, review the latest analysis, and keep your next application moving without leaving the workspace."
+        actions={<span className="rounded-full border border-emerald-400/20 bg-emerald-400/[0.07] px-3 py-1.5 text-xs font-medium text-emerald-300">Account active</span>}
+      />
 
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push("/profile")}
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-400/5 text-cyan-300 transition-all duration-300 hover:scale-105 hover:border-cyan-400/40 hover:bg-cyan-400/10"
-            >
-              <User size={20} />
-            </button>
-
-            <button
-              className="button-secondary"
-              onClick={() => void handleLogout()}
-              type="button"
-            >
-              Log out
-            </button>
-          </div>
-        </div>
-      </header>
-      <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 lg:px-12 lg:py-14">
-        <div className="flex flex-col justify-between gap-5 border-b border-white/[0.07] pb-8 sm:flex-row sm:items-end">
-          <div>
-            <p className="text-sm font-medium text-cyan-300">{user.email}</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Welcome, {user.full_name}</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">Upload a resume to uncover its strengths, find opportunities, and get focused recommendations for your next application.</p>
-          </div>
-          <span className="w-fit rounded-full border border-emerald-400/20 bg-emerald-400/[0.07] px-3 py-1.5 text-xs font-medium text-emerald-300">Account active</span>
-        </div>
-        <section className="mt-8 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-          <article className="glass-card flex min-h-80 flex-col items-center justify-center p-7 text-center">
-            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.07] text-cyan-300">
-              <Upload size={24} />
+      <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+        <Card className="flex flex-col">
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] text-cyan-300">
+              <Upload size={20} />
             </div>
-            <h2 className="mt-5 text-xl font-semibold text-white">Upload your resume</h2>
-            <p className="mt-2 max-w-sm text-sm leading-6 text-slate-400">Add a PDF file to begin your personalized resume analysis.</p>
-            <input
-              id={fileInputId}
-              ref={fileInputRef}
-              type="file"
-              accept="application/pdf,.pdf"
-              className="sr-only"
-              onChange={handleFileChange}
+            <div>
+              <h2 className="text-lg font-semibold text-white">Upload Resume</h2>
+              <p className="text-sm text-slate-500">Connected to the existing upload endpoint.</p>
+            </div>
+          </div>
+          <div className="mt-5">
+            <FileUpload
+              selectedFile={upload.selectedFile}
+              error={upload.uploadError}
+              success={upload.uploadSuccess}
+              isUploading={upload.isUploading}
+              onClear={upload.clearFile}
+              onSelect={upload.selectFile}
+              onUpload={() => void upload.uploadResume()}
             />
-            <label
-              htmlFor={fileInputId}
-              className="mt-6 flex w-full max-w-sm cursor-pointer flex-col items-center rounded-2xl border border-dashed border-cyan-300/25 bg-cyan-300/[0.04] px-5 py-6 text-sm text-slate-300 hover:border-cyan-300/45 hover:bg-cyan-300/[0.07]"
-            >
-              <FileText className="mb-3 text-cyan-300" size={28} />
-              <span className="font-semibold text-white">
-                {selectedFile ? "Change selected PDF" : "Choose a PDF file"}
-              </span>
-              <span className="mt-1 text-xs text-slate-500">PDF resumes are supported right now.</span>
-            </label>
-
-            {selectedFile && (
-              <div className="mt-4 flex w-full max-w-sm items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.035] px-4 py-3 text-left">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-white">{selectedFile.name}</p>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                </div>
-                <button
-                  aria-label="Remove selected file"
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-400 hover:text-white"
-                  onClick={clearSelectedFile}
-                  type="button"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            )}
-
-            {uploadError && (
-              <p className="mt-4 flex max-w-sm items-start gap-2 text-left text-sm leading-6 text-rose-300">
-                <AlertCircle className="mt-0.5 shrink-0" size={16} />
-                <span>{uploadError}</span>
-              </p>
-            )}
-
-            {uploadSuccess && (
-              <p className="mt-4 flex max-w-sm items-start gap-2 text-left text-sm leading-6 text-emerald-300">
-                <CheckCircle2 className="mt-0.5 shrink-0" size={16} />
-                <span>{uploadSuccess}</span>
-              </p>
-            )}
-
+          </div>
+          {upload.resumeText ? (
             <button
-              className="button-primary button-large mt-5"
-              disabled={!selectedFile || isUploading}
-              onClick={() => void handleUpload()}
+              className="button-secondary button-large mt-4 w-full"
+              disabled={upload.isAnalyzing}
+              onClick={() => void upload.analyzeResume()}
               type="button"
             >
-              {isUploading ? "Uploading..." : "Upload Resume"}
+              <FileSearch size={18} />
+              {upload.isAnalyzing ? "Analyzing..." : "Analyze Resume"}
             </button>
+          ) : null}
+          {upload.analysisError ? <div className="mt-4"><ErrorState message={upload.analysisError} /></div> : null}
+        </Card>
 
-            {resumeText && (
-              <button
-                className="button-secondary button-large mt-3"
-                disabled={isAnalyzing}
-                onClick={() => void handleAnalyzeResume()}
-                type="button"
-              >
-                <FileSearch size={18} />
-                {isAnalyzing ? "Analyzing..." : "Analyze Resume"}
-              </button>
-            )}
-          </article>
-          <article className="glass-card min-h-80 p-7">
-            <div className="flex items-center justify-between">
+        <div className="grid gap-5 md:grid-cols-2">
+          <ScoreCard title="Resume Score" value={activeAnalysis?.overall_score} subtitle="Latest analysis" />
+          <ScoreCard title="ATS Score" value={activeAnalysis?.ats_score} subtitle="Latest analysis" />
+          <Card className="md:col-span-2">
+            <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Latest report</p>
-                <h2 className="mt-2 text-xl font-semibold text-white">Resume analysis</h2>
+                <p className="text-sm text-slate-500">Latest Analysis</p>
+                <h2 className="mt-1 text-lg font-semibold text-white">{activeAnalysis?.file_name ?? "No resume analyzed yet"}</h2>
               </div>
-              <span className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-slate-500">
-                {analysis ? "Analyzed" : resumeText ? "Ready" : "Waiting"}
-              </span>
+              <Link className="button-secondary" href="/dashboard/resume">
+                View Report
+                <ArrowRight size={16} />
+              </Link>
             </div>
-            <div className="mt-8 space-y-4">
-              {analysisRows.map((row) => (
-                <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.025] px-4 py-4" key={row.label}>
-                  <span className="text-sm text-slate-400">{row.label}</span>
-                  {typeof row.value === "number" ? (
-                    <span className="text-sm font-semibold text-cyan-200">{row.value}/100</span>
-                  ) : (
-                    <span className="h-2 w-20 rounded-full bg-white/[0.06]" />
-                  )}
+            <div className="mt-5">
+              {activeAnalysis ? (
+                <div className="flex flex-wrap gap-2">
+                  {activeAnalysis.detected_skills.slice(0, 8).map((skill) => (
+                    <span className="rounded-full border border-cyan-300/20 bg-cyan-300/[0.07] px-3 py-1 text-xs text-cyan-100" key={skill}>
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm leading-6 text-slate-500">Run your first analysis to populate this card.</p>
+              )}
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-[1fr_0.8fr]">
+        <Card>
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
+            <History size={18} className="text-cyan-300" />
+          </div>
+          {history.length ? (
+            <div className="space-y-3">
+              {history.slice(0, 4).map((item) => (
+                <div className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.07] bg-white/[0.025] px-4 py-3" key={item.id}>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-white">{item.resumeName}</p>
+                    <p className="text-xs text-slate-500">{new Date(item.uploadDate).toLocaleDateString()}</p>
+                  </div>
+                  <span className="text-sm font-semibold text-cyan-200">{item.overallScore}/100</span>
                 </div>
               ))}
             </div>
-            {analysisError && (
-              <p className="mt-5 flex items-start gap-2 text-sm leading-6 text-rose-300">
-                <AlertCircle className="mt-0.5 shrink-0" size={16} />
-                <span>{analysisError}</span>
-              </p>
-            )}
-            <p className="mt-6 text-sm leading-6 text-slate-500">
-              {analysis
-                ? "Analysis complete. Review the recommendations below and refine your resume for the role you want."
-                : resumeText
-                  ? "Your resume text was extracted successfully. Run analysis to generate scores and recommendations."
-                : "Your insights and recommendations will appear here after your first resume upload."}
-            </p>
-            {analysis && (
-              <div className="mt-6 space-y-5">
-                <div>
-                  <h3 className="text-sm font-semibold text-white">Detected skills</h3>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {analysis.detected_skills.length ? (
-                      analysis.detected_skills.map((skill) => (
-                        <span className="rounded-full border border-cyan-300/20 bg-cyan-300/[0.07] px-3 py-1 text-xs text-cyan-200" key={skill}>
-                          {skill}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-sm text-slate-500">No searchable skills detected yet.</span>
-                    )}
-                  </div>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <h3 className="text-sm font-semibold text-white">Strengths</h3>
-                    <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-400">
-                      {analysis.strengths.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-white">Improve next</h3>
-                    <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-400">
-                      {analysis.recommendations.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
-          </article>
-        </section>
-        {resumeText && (
-          <section className="mt-8">
-            <article className="glass-card p-7">
-              <h2 className="text-xl font-semibold text-white">Extracted Resume Text</h2>
+          ) : (
+            <EmptyState icon={History} title="No activity yet" description="Analyzed resumes will appear here after the backend returns a report." />
+          )}
+        </Card>
 
-              <pre className="mt-4 max-h-[32rem] overflow-auto whitespace-pre-wrap rounded-2xl border border-white/[0.07] bg-slate-950/45 p-4 text-left text-sm leading-6 text-slate-300">
-                {resumeText}
-              </pre>
-            </article>
-          </section>
-        )}
+        <Card>
+          <h2 className="text-lg font-semibold text-white">Quick Actions</h2>
+          <div className="mt-5 grid gap-3">
+            {[
+              { href: "/dashboard/resume", label: "Resume Analysis", icon: FileSearch },
+              { href: "/dashboard/interview", label: "Mock Interview", icon: Mic },
+              { href: "/dashboard/ats", label: "ATS Checker", icon: ClipboardCheck },
+            ].map((action) => {
+              const Icon = action.icon;
+              return (
+                <Link className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.025] px-4 py-3 text-sm font-medium text-slate-300 hover:border-cyan-300/25 hover:bg-cyan-300/[0.06]" href={action.href} key={action.href}>
+                  <span className="flex items-center gap-3"><Icon size={17} className="text-cyan-300" />{action.label}</span>
+                  <ArrowRight size={16} />
+                </Link>
+              );
+            })}
+          </div>
+        </Card>
       </div>
-    </main>
+
+      {upload.analysis ? <AnalysisReport analysis={upload.analysis} /> : null}
+    </div>
   );
 }
