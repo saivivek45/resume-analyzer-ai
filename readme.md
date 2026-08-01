@@ -1,4 +1,4 @@
-# Vi + nay/vek
+# AI RESUME ANALYZER
 
 AI-powered career assistant for resume analysis, skill-gap detection, assessments, and interview preparation.
 
