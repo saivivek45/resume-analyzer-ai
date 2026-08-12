@@ -1,8 +1,31 @@
+# Virtual environments
+.venv/
+myenv/
+venv/
+env/
+
+# Python cache
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
 
+# Environment variables
+.env
+.env.*
+
+# IDE
 .vscode/
-
-uploads/
-
 .idea/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build / distribution
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log

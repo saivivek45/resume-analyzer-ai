@@ -9,7 +9,7 @@ import {
 } from "react";
 import api, { getApiErrorMessage } from "@/src/lib/api";
 import type { AnalysisResponse, UploadResponse } from "@/src/lib/resume";
-import { saveLatestAnalysis } from "@/src/lib/resume";
+
 import { useAuth } from "@/components/auth-provider";
 
 interface ResumeUploadContextValue {
@@ -132,7 +132,7 @@ export function ResumeUploadProvider({ children }: { children: React.ReactNode }
       });
 
       setAnalysis(response.data);
-      saveLatestAnalysis(response.data, selectedFile?.name ?? "Uploaded resume");
+
     } catch (error) {
       setAnalysisError(getApiErrorMessage(error, "Analysis failed. Please try again."));
     } finally {

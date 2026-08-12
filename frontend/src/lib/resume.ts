@@ -1,3 +1,5 @@
+import api from "./api";
+
 export interface UploadResponse {
   text?: string;
 }
@@ -23,64 +25,21 @@ export interface ResumeHistoryItem {
   overallScore: number;
 }
 
-const latestAnalysisKey = "careerpilot.latestAnalysis";
-const historyKey = "careerpilot.resumeHistory";
-
-export function saveLatestAnalysis(analysis: AnalysisResponse, resumeName: string): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(
-    latestAnalysisKey,
-    JSON.stringify({
-      ...analysis,
-      file_name: analysis.file_name ?? resumeName,
-    }),
-  );
-
-  const history = getResumeHistory();
-  const item: ResumeHistoryItem = {
-    id: `${Date.now()}-${resumeName}`,
-    resumeName,
-    uploadDate: new Date().toISOString(),
-    atsScore: analysis.ats_score,
-    overallScore: analysis.overall_score,
-  };
-
-  window.localStorage.setItem(historyKey, JSON.stringify([item, ...history].slice(0, 12)));
-}
-
-export function getLatestAnalysis(): AnalysisResponse | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const raw = window.localStorage.getItem(latestAnalysisKey);
-  if (!raw) {
-    return null;
-  }
-
+export async function fetchLatestAnalysis(): Promise<AnalysisResponse | null> {
   try {
-    return JSON.parse(raw) as AnalysisResponse;
-  } catch {
+    const res = await api.get<AnalysisResponse>("/resume/latest");
+    return res.data;
+  } catch (error) {
     return null;
   }
 }
 
-export function getResumeHistory(): ResumeHistoryItem[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  const raw = window.localStorage.getItem(historyKey);
-  if (!raw) {
-    return [];
-  }
-
+export async function fetchResumeHistory(): Promise<ResumeHistoryItem[]> {
   try {
-    return JSON.parse(raw) as ResumeHistoryItem[];
-  } catch {
+    const res = await api.get<ResumeHistoryItem[]>("/resume/history");
+    return res.data;
+  } catch (error) {
     return [];
   }
 }
+

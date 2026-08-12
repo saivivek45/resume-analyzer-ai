@@ -6,18 +6,28 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { getResumeHistory } from "@/src/lib/resume";
+import { fetchResumeHistory } from "@/src/lib/resume";
 import type { ResumeHistoryItem } from "@/src/lib/resume";
 
 export default function ResumeHistoryPage() {
   const [history, setHistory] = useState<ResumeHistoryItem[]>([]);
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setHistory(getResumeHistory());
-    }, 0);
+    let isMounted = true;
 
-    return () => window.clearTimeout(timeoutId);
+    async function loadHistory() {
+      const resumeHistory = await fetchResumeHistory();
+
+      if (isMounted) {
+        setHistory(resumeHistory);
+      }
+    }
+
+    void loadHistory();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (

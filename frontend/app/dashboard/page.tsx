@@ -12,7 +12,7 @@ import { FileUpload } from "@/components/ui/file-upload";
 import { PageHeader } from "@/components/ui/page-header";
 import { ScoreCard } from "@/components/ui/score-card";
 import { useAuth } from "@/components/auth-provider";
-import { getLatestAnalysis, getResumeHistory } from "@/src/lib/resume";
+import { fetchLatestAnalysis, fetchResumeHistory } from "@/src/lib/resume";
 import type { AnalysisResponse, ResumeHistoryItem } from "@/src/lib/resume";
 
 export default function DashboardPage() {
@@ -22,12 +22,19 @@ export default function DashboardPage() {
   const [history, setHistory] = useState<ResumeHistoryItem[]>([]);
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setLatest(getLatestAnalysis());
-      setHistory(getResumeHistory());
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
+    let mounted = true;
+    async function loadData() {
+      const [latestData, historyData] = await Promise.all([
+        fetchLatestAnalysis(),
+        fetchResumeHistory(),
+      ]);
+      if (mounted) {
+        setLatest(latestData);
+        setHistory(historyData);
+      }
+    }
+    void loadData();
+    return () => { mounted = false; };
   }, [upload.analysis]);
 
   const activeAnalysis = upload.analysis ?? latest;

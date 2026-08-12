@@ -24,6 +24,7 @@ class Settings:
     smtp_use_tls: bool
     cookie_secure: bool
     frontend_url: str
+    gemini_api_key: str
 
     def __init__(self) -> None:
         self.database_url = os.getenv(
@@ -41,6 +42,7 @@ class Settings:
         self.smtp_use_tls = _as_bool(os.getenv("SMTP_USE_TLS", "true"))
         self.cookie_secure = _as_bool(os.getenv("COOKIE_SECURE", "false"))
         self.frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        self.gemini_api_key = os.getenv("GEMINI_API_KEY", "")
 
 
 @lru_cache

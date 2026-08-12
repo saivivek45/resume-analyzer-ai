@@ -13,6 +13,8 @@ from app.models.resume_analytics import ResumeAnalysis
 
 from app.routers.auth import router as auth_router
 from app.routers.resume import router as resume_router
+from app.routers.ats import router as ats_router
+from app.routers.interview import router as interview_router
 # Create all tables
 Base.metadata.create_all(bind=engine)
 
@@ -29,6 +31,8 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(resume_router)
+app.include_router(ats_router)
+app.include_router(interview_router)
 
 @app.get("/")
 def welcome():
