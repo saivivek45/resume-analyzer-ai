@@ -46,7 +46,7 @@ def set_auth_cookie(response: Response, user: User) -> None:
         value=token,
         httponly=True,
         secure=settings.cookie_secure,
-        samesite="lax",
+        samesite="none" if settings.cookie_secure else "lax",
         max_age=60 * 60 * 24 * settings.jwt_expire_days,
         expires=60 * 60 * 24 * settings.jwt_expire_days,
         path="/",
