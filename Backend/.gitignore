@@ -3,6 +3,8 @@
 myenv/
 venv/
 env/
+test-env/
+Backend/test-env/
 
 # Python cache
 __pycache__/
@@ -12,6 +14,7 @@ __pycache__/
 # Environment variables
 .env
 .env.*
+!.env.example
 
 # IDE
 .vscode/
@@ -29,3 +32,11 @@ dist/
 
 # Logs
 *.log
+
+# Node.js
+node_modules/
+.next/
+
+# OS
+.DS_Store
+Thumbs.db

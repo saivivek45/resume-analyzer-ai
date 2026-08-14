@@ -6,7 +6,12 @@ interface StoreResumePayload {
   userEmail?: string;
 }
 
-const backendUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const backendUrl = process.env.NEXT_PUBLIC_API_URL || (() => {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("NEXT_PUBLIC_API_URL environment variable is required in production");
+  }
+  return "http://localhost:8000";
+})();
 
 export async function POST(request: Request) {
   const payload = (await request.json()) as StoreResumePayload;

@@ -15,10 +15,16 @@ from app.routers.auth import router as auth_router
 from app.routers.resume import router as resume_router
 from app.routers.ats import router as ats_router
 from app.routers.interview import router as interview_router
+from app.routes_health import router as health_router
+
 # Create all tables
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="CareerPilot AI")
+app = FastAPI(
+    title="CareerPilot AI",
+    description="AI-powered career assistant for resume analysis, skill-gap detection, assessments, and interview preparation",
+    version="1.0.0"
+)
 
 # CORS
 app.add_middleware(
@@ -29,6 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(resume_router)
 app.include_router(ats_router)
@@ -36,4 +43,8 @@ app.include_router(interview_router)
 
 @app.get("/")
 def welcome():
-    return {"message": "Welcome"}
+    return {
+        "message": "Welcome to CareerPilot AI",
+        "docs": "/docs",
+        "health": "/health"
+    }
