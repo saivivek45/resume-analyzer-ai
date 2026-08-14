@@ -4,8 +4,14 @@ interface FastApiError {
   detail?: string | Array<{ msg: string }>;
 }
 
+const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+const apiBaseURL =
+  typeof window !== "undefined" && process.env.NODE_ENV === "production"
+    ? "/api/backend"
+    : configuredApiUrl ?? "http://localhost:8000";
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000",
+  baseURL: apiBaseURL,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
